@@ -22,7 +22,7 @@ import os
 
 class VOQCOptimize(TransformationPass):
     '''
-    Qiskit TransformationPass to run VOQC optimizations. 
+    Qiskit TransformationPass to run VOQC optimizations.
     '''
     def __init__(self, opts):
         super().__init__()
@@ -36,13 +36,13 @@ class VOQCOptimize(TransformationPass):
             "merge_rotations",
             "optimize_nam",
             "optimize" ]
-        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry', 
+        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry',
                            'rz', 'rzq', 'u1', 'u2', 'u3', 'cx', 'cz', 'swap', 'ccx', 'ccz']
-        
+
         for opt in self.opts:
             if not (opt in self.defined_opts):
                 raise VOQCError("Invalid VOQC optimization pass %s." % opt)
-            
+
     def run(self, dag):
         # check that gates are supported in VOQC
         for node in dag.op_nodes():
@@ -50,25 +50,25 @@ class VOQCOptimize(TransformationPass):
                 raise VOQCError("Unsupported gate %s." % node.name)
 
         if len(self.opts) > 0:
-            # write qasm file 
+            # write qasm file
             # TODO : would be nice if we could convert directly from Qiskit's circuit,
             #        but this requires support in the OCaml code
-            circ = dag_to_circuit(dag)     
+            circ = dag_to_circuit(dag)
             circ.qasm(formatted=False, filename="temp_in.qasm")
-            
+
             # apply VOQC transformations
             self.call_opts("temp_in.qasm", "temp_out.qasm")
-            
+
             # convert back to a dag and return
             opt_circ = QuantumCircuit.from_qasm_file("temp_out.qasm")
             to_dag = circuit_to_dag(opt_circ)
             os.remove("temp_in.qasm")
             os.remove("temp_out.qasm")
             return to_dag
-        
+
         else:
             return dag
-    
+
     def call_opts(self, inf, outf):
         lib = get_library_handle()
         c = VOQCCircuit(lib, inf)
@@ -80,23 +80,23 @@ class VOQCOptimize(TransformationPass):
 
 class VOQCDecompose3q(TransformationPass):
     '''
-    Qiskit TransformationPass using VOQC to decompose multi-qubit gates to CNOTs. 
+    Qiskit TransformationPass using VOQC to decompose multi-qubit gates to CNOTs.
     '''
     def __init__(self):
         super().__init__()
-        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry', 
+        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry',
                            'rz', 'rzq', 'u1', 'u2', 'u3', 'cx', 'cz', 'swap', 'ccx', 'ccz']
-            
+
     def run(self, dag):
         # check that gates are supported in VOQC
         for node in dag.op_nodes():
             if not (node.name in self.voqc_gates):
                 raise VOQCError("Unsupported gate %s." % node.name)
 
-        # write qasm file 
-        circ = dag_to_circuit(dag)     
+        # write qasm file
+        circ = dag_to_circuit(dag)
         circ.qasm(formatted=False, filename="temp_in.qasm")
-        
+
         # apply VOQC transformations
         lib = get_library_handle()
         c = VOQCCircuit(lib, "temp_in.qasm")
@@ -112,7 +112,7 @@ class VOQCDecompose3q(TransformationPass):
 
 class VOQCMap(TransformationPass):
     '''
-    Qiskit TransformationPass to run Qiskit's mapping + VOQC translation validation. 
+    Qiskit TransformationPass to run Qiskit's mapping + VOQC translation validation.
     '''
     def __init__(self, layout_method, routing_method, backend_properties, coupling_map, seed_transpiler):
         super().__init__()
@@ -121,9 +121,9 @@ class VOQCMap(TransformationPass):
         self.backend_properties = backend_properties
         self.coupling_map = coupling_map
         self.seed_transpiler = seed_transpiler
-        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry', 
+        self.voqc_gates = ['i', 'x', 'y', 'z', 'h', 's', 't', 'sdg', 'tdg', 'rx', 'ry',
                     'rz', 'rzq', 'u1', 'u2', 'u3', 'cx', 'cz', 'swap', 'ccx', 'ccz']
-            
+
     def run(self, dag):
         # check that gates are supported in VOQC
         for node in dag.op_nodes():
@@ -131,9 +131,9 @@ class VOQCMap(TransformationPass):
                 raise VOQCError("Unsupported gate %s." % node.name)
 
         # save input circuit
-        circ = dag_to_circuit(dag)     
+        circ = dag_to_circuit(dag)
         circ.qasm(formatted=False, filename="temp_in.qasm")
-        
+
         # apply Qiskit layout/routing, adapted from Qiskit's level 3 pass manager
         # https://github.com/Qiskit/qiskit-terra/blob/main/qiskit/transpiler/preset_passmanagers/level3.py
         # TODO: Is it ok to use a PassManager inside of a TransformationPass?
@@ -146,7 +146,7 @@ class VOQCMap(TransformationPass):
             ):
                 return True
             return False
-        
+
         _choose_layout_0 = VF2Layout(
                                 self.coupling_map,
                                 seed=self.seed_transpiler,
@@ -190,7 +190,7 @@ class VOQCMap(TransformationPass):
         pm.append(_embed)
         pm.append(_swap_check)
         pm.append(_swap, condition=_swap_condition)
-        
+
         mapped_circ = pm.run(circ)
 
         # save post-mapping circuit
@@ -216,6 +216,7 @@ class VOQCMap(TransformationPass):
 
         # convert back to a dag and return
         circ = QuantumCircuit.from_qasm_file("temp_out2.qasm")
+        circ._layout = mapped_circ._layout
         to_dag = circuit_to_dag(circ)
         os.remove("temp_in.qasm")
         os.remove("temp_out.qasm")
@@ -241,9 +242,9 @@ class VOQCMap(TransformationPass):
 
 def voqc_pass_manager(pre_opts=None, post_opts=None, layout_method=None, routing_method=None, backend_properties=None, coupling_map=None, seed_transpiler=None) -> PassManager:
     """
-    VOQC pass manager. Performs Qiskit layout/routing and VOQC translation validation 
+    VOQC pass manager. Performs Qiskit layout/routing and VOQC translation validation
     followed by the specified VOQC optimizations.
-    
+
         Parameters:
             pre_opts: sequence of VOQC optimizations to apply before mapping (default is [])
             post_opts: sequence of VOQC optimizations to apply after mapping (default is [optimize])
@@ -252,12 +253,12 @@ def voqc_pass_manager(pre_opts=None, post_opts=None, layout_method=None, routing
             backend_properties: backend properties, used for layout/routing
             coupling_map: CNOT connectivity graph, used for layout/routing
             seed_transpiler: seed for randomness, used for layout/routing
-     
+
         Returns:
             A Qiskit pass manager
 
-        Notes: 
-            The output gate set depends on the sequence on optimizations applied. 
+        Notes:
+            The output gate set depends on the sequence on optimizations applied.
             By default, output will use the gate set {U1, U2, U3, CX}
             If the coupling_map is None, only optimizations will be applied.
             If the optimization list is empty, only mapping will be applied.
