@@ -216,6 +216,7 @@ class VOQCMap(TransformationPass):
 
         # convert back to a dag and return
         circ = QuantumCircuit.from_qasm_file("temp_out2.qasm")
+        circ._layout = mapped_circ._layout
         to_dag = circuit_to_dag(circ)
         os.remove("temp_in.qasm")
         os.remove("temp_out.qasm")
